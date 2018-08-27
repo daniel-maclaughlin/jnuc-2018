@@ -1,6 +1,12 @@
 <?php
+//Written for rextracting data fron a SnipeIT Asset DB
 
-//DB details
+
+//DB details note these can be put into a different file and you can use an include statement
+// Add DB config
+//include 'dbConfig.php';
+
+//hard code DB details
 $dbHost = '192.168.100.50';
 $dbUsername = 'jnuc';
 $dbPassword = 'jnuc2018';
@@ -15,18 +21,14 @@ if ($db->connect_error) {
 //server url as injectected by webhook address 
 $jamfurl = $_GET["jamfurl"];
 
-
 //webhook auth can be used as variables entered into the jamf server
 $webhookuser = $_SERVER['PHP_AUTH_USER'];
 $webhookpass = $_SERVER['PHP_AUTH_PW'];
 
-
-
-
-//JSON from WebHook
+//WebHook details in JSON format
 $json = file_get_contents('php://input');
 
-//Format JSON
+//Format the JSON for data to be extracted from it
 $obj = json_decode($json, TRUE);
 
 //get device type from JSON
@@ -37,9 +39,7 @@ $deviceSN   = $obj["event"]["serialNumber"];
 $deviceID   = $obj["event"]["jssID"];
 $deviceName = $obj["event"]["deviceName"];
 
-
-
-//query the Database to find the information
+//query the Database to find the information in array format
 $result = mysqli_query($db,"SELECT * FROM assets WHERE serial = '".$deviceSN."'");
 
 //check to see if the device is there if not then exits out
@@ -48,7 +48,7 @@ if ($result->num_rows === 0){
     }
 else {
 
-//cycle through the rows fields assigning variables
+//cycle through the rows fields assigning variables from the array
 while ($row = mysqli_fetch_array($result)){
 $asset_tag = $row['asset_tag'];
 $po_date = $row['purchase_date'];
@@ -57,7 +57,7 @@ $warranty = $row['warranty_months'];
 
 }
 
-//calculate warranty expiration
+//calculate warranty expiration and format into YYYY-MM-DD
 $tmpdate = new DateTime($po_date);
 $warranty_date= $tmpdate ->add(new DateInterval('P'.$warranty.'M'));
 $warranty_date = $warranty_date->format('Y-m-d');
@@ -78,7 +78,7 @@ if ($status == 1) {
 }
 
 
-
+//Check if the device type is Mobile or Computer
 if( strpos( $deviceType, 'Mobile' ) !== false) {	
 		$xml="<mobile_device>
   			<general>
@@ -130,7 +130,8 @@ if( strpos( $deviceType, 'Mobile' ) !== false) {
 
 
 
-	// Setup and run CURL to call jss api to update content from DB
+	// Setup and run CURL to call jss api to update content from Asset DB
+	//Thanks to Oliver Lindsey for showing PHP CURL options
 	$ch = curl_init();
   	curl_setopt($ch, CURLOPT_URL, $url);
 	curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY ) ;		// eauthentification method to use  CURLAUTH_BASIC
@@ -144,7 +145,7 @@ if( strpos( $deviceType, 'Mobile' ) !== false) {
 	$output = curl_exec($ch);
 
 
-	//Tmp log to troubleshoot
+	//Tmp log to troubleshoot the curl command submitting to the API
 	// Open the file to get existing content
 	$file = "/tmp/curl.log";
 	// Write the contents back to the file for logging
